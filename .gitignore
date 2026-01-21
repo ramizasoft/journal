@@ -26,5 +26,6 @@ _bmad
 _bmad-output
 .agent
 .cursor
+.claude
 .gemini
 .opencode
