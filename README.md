@@ -32,8 +32,8 @@ A premium, AI-powered personal journaling and work diary application built for c
 
 1. **Clone the repository**:
    ```bash
-   git clone <your-repo-url>
-   cd worklog
+   git clone git@github.com:ramizasoft/journal.git
+   cd journal
    ```
 
 2. **Install Dependencies**:
