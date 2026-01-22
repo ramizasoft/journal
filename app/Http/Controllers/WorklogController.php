@@ -42,11 +42,10 @@ class WorklogController extends Controller
         return back()->with('success', 'Raw notes saved.');
     }
 
-    public function process(Worklog $worklog)
+    public function process($worklogId)
     {
-        if ($worklog->user_id !== auth()->id()) {
-            abort(403, 'Unauthorized: You do not own this journal entry.');
-        }
+        // Find the worklog scoped to the authenticated user
+        $worklog = auth()->user()->worklogs()->findOrFail($worklogId);
 
         if (empty($worklog->raw_content)) {
             return back()->withErrors(['process' => 'No notes to process.']);
