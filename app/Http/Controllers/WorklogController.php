@@ -44,14 +44,22 @@ class WorklogController extends Controller
 
     public function process(Worklog $worklog)
     {
-        Gate::authorize('update', $worklog);
+        if ($worklog->user_id !== auth()->id()) {
+            abort(403, 'Unauthorized: You do not own this journal entry.');
+        }
 
         if (empty($worklog->raw_content)) {
             return back()->withErrors(['process' => 'No notes to process.']);
         }
 
         try {
-            $userKey = auth()->user()->gemini_key ?: config('services.gemini.key');
+            $user = auth()->user();
+            $userKey = $user->gemini_key ?: config('services.gemini.key');
+            
+            if (empty($userKey)) {
+                throw new \Exception('No Gemini API key found. Please set one in your profile.');
+            }
+
             $this->gemini->setupClient($userKey);
 
             $organized = $this->gemini->organizeNotes($worklog->raw_content, $worklog->organized_content);
@@ -84,7 +92,13 @@ class WorklogController extends Controller
         $combinedContent = $logs->pluck('organized_content')->implode("\n\n---\n\n");
 
         try {
-            $userKey = auth()->user()->gemini_key ?: config('services.gemini.key');
+            $user = auth()->user();
+            $userKey = $user->gemini_key ?: config('services.gemini.key');
+
+            if (empty($userKey)) {
+                throw new \Exception('No Gemini API key found. Please set one in your profile.');
+            }
+
             $this->gemini->setupClient($userKey);
 
             $report = $this->gemini->generateReport($combinedContent, $validated['style']);

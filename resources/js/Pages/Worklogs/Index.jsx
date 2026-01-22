@@ -24,6 +24,12 @@ export default function Index({ auth, worklogs, hasGeminiKey }) {
         raw_content: '',
     });
 
+    const reportForm = useForm({
+        start_date: '',
+        end_date: '',
+        style: 'detailed',
+    });
+
     // Auto-dismiss toast notifications after 5 seconds
     useEffect(() => {
         if (flash?.success || flash?.error || Object.keys(pageErrors).length > 0) {
@@ -60,6 +66,8 @@ export default function Index({ auth, worklogs, hasGeminiKey }) {
                 raw_content: data.raw_content
             }).then(() => {
                 setSaveStatus('saved');
+                // Reload the page data to get the updated worklog with ID
+                router.reload({ only: ['worklogs'] });
             }).catch(() => {
                 setSaveStatus('idle');
             });
@@ -72,6 +80,7 @@ export default function Index({ auth, worklogs, hasGeminiKey }) {
         e.preventDefault();
         post(route('worklogs.store'), {
             preserveScroll: true,
+            only: ['worklogs', 'flash'],
         });
     };
 
@@ -191,7 +200,7 @@ export default function Index({ auth, worklogs, hasGeminiKey }) {
 
                             <button
                                 onClick={handleProcess}
-                                disabled={!currentLog || processing}
+                                disabled={!currentLog?.id || !data.raw_content.trim() || processing}
                                 className="group relative flex items-center gap-3 px-8 py-3.5 bg-cyan-600 rounded-2xl font-black text-white transition-all hover:bg-cyan-500 hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:grayscale disabled:scale-100 shadow-[0_0_20px_rgba(8,145,178,0.3)] hover:shadow-[0_0_30px_rgba(8,145,178,0.5)]"
                             >
                                 <Sparkles className="w-5 h-5 animate-pulse" />
@@ -212,13 +221,19 @@ export default function Index({ auth, worklogs, hasGeminiKey }) {
                                 </div>
                             </div>
 
-                            <form action={route('worklogs.report')} method="GET" className="space-y-8">
+                            <form onSubmit={(e) => {
+                                e.preventDefault();
+                                reportForm.post(route('worklogs.report'), {
+                                    onSuccess: () => setShowReportModal(false),
+                                });
+                            }} className="space-y-8">
                                 <div className="grid grid-cols-2 gap-6">
                                     <div className="space-y-3">
                                         <label className="block text-xs font-black uppercase tracking-widest text-slate-500 ml-1">Start Date</label>
                                         <input
                                             type="date"
-                                            name="start_date"
+                                            value={reportForm.data.start_date}
+                                            onChange={e => reportForm.setData('start_date', e.target.value)}
                                             className="w-full bg-slate-950 border-slate-800 rounded-[1.5rem] p-4 text-slate-200 focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500/50 transition-all"
                                             required
                                         />
@@ -227,7 +242,8 @@ export default function Index({ auth, worklogs, hasGeminiKey }) {
                                         <label className="block text-xs font-black uppercase tracking-widest text-slate-500 ml-1">End Date</label>
                                         <input
                                             type="date"
-                                            name="end_date"
+                                            value={reportForm.data.end_date}
+                                            onChange={e => reportForm.setData('end_date', e.target.value)}
                                             className="w-full bg-slate-950 border-slate-800 rounded-[1.5rem] p-4 text-slate-200 focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500/50 transition-all"
                                             required
                                         />
@@ -237,7 +253,8 @@ export default function Index({ auth, worklogs, hasGeminiKey }) {
                                 <div className="space-y-3">
                                     <label className="block text-xs font-black uppercase tracking-widest text-slate-500 ml-1">Report Style</label>
                                     <select
-                                        name="style"
+                                        value={reportForm.data.style}
+                                        onChange={e => reportForm.setData('style', e.target.value)}
                                         className="w-full bg-slate-950 border-slate-800 rounded-[1.5rem] p-4 text-slate-200 focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500/50 transition-all appearance-none cursor-pointer"
                                         required
                                     >
@@ -257,9 +274,10 @@ export default function Index({ auth, worklogs, hasGeminiKey }) {
                                     </button>
                                     <button
                                         type="submit"
-                                        className="flex-[2] px-8 py-4 bg-cyan-600 text-white rounded-2xl font-black shadow-lg shadow-cyan-900/20 hover:bg-cyan-500 transition-all hover:scale-[1.02] active:scale-95"
+                                        disabled={reportForm.processing}
+                                        className="flex-[2] px-8 py-4 bg-cyan-600 text-white rounded-2xl font-black shadow-lg shadow-cyan-900/20 hover:bg-cyan-500 transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-50"
                                     >
-                                        Generate Report
+                                        {reportForm.processing ? 'Generating...' : 'Generate Report'}
                                     </button>
                                 </div>
                             </form>

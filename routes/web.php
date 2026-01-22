@@ -28,7 +28,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/', [WorklogController::class, 'index'])->name('index');
         Route::post('/', [WorklogController::class, 'store'])->name('store');
         Route::post('/{worklog}/process', [WorklogController::class, 'process'])->name('process');
-        Route::get('/report', [WorklogController::class, 'generateReport'])->name('report');
+        Route::match(['get', 'post'], '/report', [WorklogController::class, 'generateReport'])->name('report');
     });
 });
 

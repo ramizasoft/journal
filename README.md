@@ -11,8 +11,8 @@ A premium, AI-powered personal journaling and work diary application built for c
 
 ## ✨ Features
 
-- **🧠 AI Transformation**: Dump your messy thoughts, sporadic notes, or bullet points. Our AI reorganization engine (powered by GPT-4o) transforms them into structured, professional narratives.
-- **🔐 Personal Privacy (BYOK)**: Secure, encrypted storage for your data. Users can provide their own OpenAI API key to bypass global limits and ensure personal usage quotas.
+- **🧠 AI Transformation**: Dump your messy thoughts, sporadic notes, or bullet points. Our AI reorganization engine (powered by Gemini) transforms them into structured, professional narratives.
+- **🔐 Personal Privacy (BYOK)**: Secure, encrypted storage for your data. Users can provide their own Gemini API key to bypass global limits and ensure personal usage quotas.
 - **📊 Intelligence Reports**: Generate professional summaries or "Achievements" reports for any custom date range. Perfect for weekly performance reviews or monthly reflections.
 - **🌑 Premium Aesthetic**: A modern, dark-themed user interface designed with a focus on deep focus, readability, and high-end aesthetics.
 - **🧩 Multi-User Support**: Robust authentication and private data silo for every registered user.
@@ -83,7 +83,7 @@ A premium, AI-powered personal journaling and work diary application built for c
 - **Frontend**: React.js with Inertia.js
 - **Styling**: Tailwind CSS & Framer Motion
 - **Database**: MySQL (with Schema indexing fix for compatibility)
-- **AI Integration**: OpenAI GPT-4o API
+- **AI Integration**: Gemini 2.0 Flash API (via Google AI Studio)
 
 ---
 
