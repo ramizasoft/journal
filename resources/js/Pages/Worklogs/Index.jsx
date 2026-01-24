@@ -16,6 +16,8 @@ export default function Index({ auth, worklogs, hasGeminiKey }) {
     const [showReportModal, setShowReportModal] = useState(false);
     const [saveStatus, setSaveStatus] = useState('idle'); // idle, saving, saved
     const [showToast, setShowToast] = useState(true);
+    const [cooldownUntil, setCooldownUntil] = useState(null); // Timestamp when cooldown expires
+    const [cooldownSeconds, setCooldownSeconds] = useState(0); // Remaining seconds in cooldown
 
     // Get errors from page props (for process action)
     const pageErrors = usePage().props.errors || {};
@@ -41,6 +43,44 @@ export default function Index({ auth, worklogs, hasGeminiKey }) {
         }
     }, [flash, pageErrors]);
 
+    // Cooldown countdown timer
+    useEffect(() => {
+        if (!cooldownUntil) {
+            setCooldownSeconds(0);
+            return;
+        }
+
+        const updateCountdown = () => {
+            const remaining = Math.max(0, Math.ceil((cooldownUntil - Date.now()) / 1000));
+            setCooldownSeconds(remaining);
+            
+            if (remaining <= 0) {
+                setCooldownUntil(null);
+            }
+        };
+
+        // Update immediately
+        updateCountdown();
+
+        // Update every second
+        const interval = setInterval(updateCountdown, 1000);
+
+        return () => clearInterval(interval);
+    }, [cooldownUntil]);
+
+    // Parse error messages to extract cooldown seconds from backend
+    useEffect(() => {
+        const processError = pageErrors.process;
+        if (processError) {
+            // Extract seconds from error message like "Please wait 25 seconds before reorganizing again."
+            const match = processError.match(/wait (\d+) second/i);
+            if (match) {
+                const seconds = parseInt(match[1], 10);
+                setCooldownUntil(Date.now() + (seconds * 1000));
+            }
+        }
+    }, [pageErrors]);
+
     useEffect(() => {
         const log = worklogs.find(w => {
             // Normalize log_date to YYYY-MM-DD format
@@ -51,6 +91,9 @@ export default function Index({ auth, worklogs, hasGeminiKey }) {
         });
         setCurrentLog(log || null);
         setData('raw_content', log?.raw_content || '');
+        // Reset cooldown when switching worklogs
+        setCooldownUntil(null);
+        setCooldownSeconds(0);
     }, [selectedDate, worklogs]);
 
     // Auto-save logic
@@ -85,9 +128,25 @@ export default function Index({ auth, worklogs, hasGeminiKey }) {
     };
 
     const handleProcess = () => {
-        if (!currentLog?.id) return;
+        if (!currentLog?.id || cooldownSeconds > 0 || processing) return;
+        
         router.post(route('worklogs.process', currentLog.id), {}, {
             preserveScroll: true,
+            onSuccess: () => {
+                // Set 30 second cooldown after successful processing
+                setCooldownUntil(Date.now() + 30000);
+            },
+            onError: (errors) => {
+                // Handle throttle middleware errors (429 status)
+                // The backend rate limiter error is already handled in useEffect
+                if (errors.process) {
+                    const match = errors.process.match(/wait (\d+) second/i);
+                    if (match) {
+                        const seconds = parseInt(match[1], 10);
+                        setCooldownUntil(Date.now() + (seconds * 1000));
+                    }
+                }
+            },
         });
     };
 
@@ -200,11 +259,22 @@ export default function Index({ auth, worklogs, hasGeminiKey }) {
 
                             <button
                                 onClick={handleProcess}
-                                disabled={!currentLog?.id || !data.raw_content.trim() || processing}
+                                disabled={!currentLog?.id || !data.raw_content.trim() || processing || cooldownSeconds > 0}
                                 className="group relative flex items-center gap-3 px-8 py-3.5 bg-cyan-600 rounded-2xl font-black text-white transition-all hover:bg-cyan-500 hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:grayscale disabled:scale-100 shadow-[0_0_20px_rgba(8,145,178,0.3)] hover:shadow-[0_0_30px_rgba(8,145,178,0.5)]"
                             >
-                                <Sparkles className="w-5 h-5 animate-pulse" />
-                                <span>AI Reorganize</span>
+                                {processing ? (
+                                    <RefreshCcw className="w-5 h-5 animate-spin" />
+                                ) : (
+                                    <Sparkles className={`w-5 h-5 ${cooldownSeconds > 0 ? '' : 'animate-pulse'}`} />
+                                )}
+                                <span>
+                                    {processing 
+                                        ? 'Processing...' 
+                                        : cooldownSeconds > 0 
+                                            ? `Wait ${cooldownSeconds}s` 
+                                            : 'AI Reorganize'
+                                    }
+                                </span>
                             </button>
                         </div>
                     </div>

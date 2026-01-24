@@ -6,6 +6,8 @@ use App\Models\Worklog;
 use App\Services\GeminiService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Carbon\Carbon;
 
@@ -51,6 +53,16 @@ class WorklogController extends Controller
             return back()->withErrors(['process' => 'No notes to process.']);
         }
 
+        // Rate limiting: 1 attempt per 30 seconds per user per worklog
+        $throttleKey = 'process-worklog:' . auth()->id() . ':' . $worklogId;
+        
+        if (RateLimiter::tooManyAttempts($throttleKey, 1)) {
+            $seconds = RateLimiter::availableIn($throttleKey);
+            return back()->withErrors([
+                'process' => "Please wait {$seconds} " . Str::plural('second', $seconds) . " before reorganizing again."
+            ]);
+        }
+
         try {
             $user = auth()->user();
             $userKey = $user->gemini_key ?: config('services.gemini.key');
@@ -63,6 +75,9 @@ class WorklogController extends Controller
 
             $organized = $this->gemini->organizeNotes($worklog->raw_content, $worklog->organized_content);
             $worklog->update(['organized_content' => $organized]);
+            
+            // Hit rate limiter after successful processing (30 second cooldown)
+            RateLimiter::hit($throttleKey, 30);
             
             return back()->with('success', 'Logs organized by AI!');
         } catch (\Exception $e) {
@@ -77,6 +92,16 @@ class WorklogController extends Controller
             'end_date' => 'required|date',
             'style' => 'required|in:executive,detailed,achievements',
         ]);
+
+        // Rate limiting: 1 attempt per 60 seconds per user for report generation
+        $throttleKey = 'generate-report:' . auth()->id();
+        
+        if (RateLimiter::tooManyAttempts($throttleKey, 1)) {
+            $seconds = RateLimiter::availableIn($throttleKey);
+            return back()->withErrors([
+                'report' => "Please wait {$seconds} " . Str::plural('second', $seconds) . " before generating another report."
+            ]);
+        }
 
         $logs = auth()->user()->worklogs()
             ->whereBetween('log_date', [$validated['start_date'], $validated['end_date']])
@@ -101,6 +126,10 @@ class WorklogController extends Controller
             $this->gemini->setupClient($userKey);
 
             $report = $this->gemini->generateReport($combinedContent, $validated['style']);
+            
+            // Hit rate limiter after successful report generation (60 second cooldown)
+            RateLimiter::hit($throttleKey, 60);
+            
             return Inertia::render('Worklogs/Report', [
                 'report' => $report,
                 'range' => [$validated['start_date'], $validated['end_date']],

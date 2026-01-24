@@ -27,8 +27,12 @@ Route::middleware('auth')->group(function () {
     Route::prefix('worklogs')->name('worklogs.')->group(function () {
         Route::get('/', [WorklogController::class, 'index'])->name('index');
         Route::post('/', [WorklogController::class, 'store'])->name('store');
-        Route::post('/{worklog}/process', [WorklogController::class, 'process'])->name('process');
-        Route::match(['get', 'post'], '/report', [WorklogController::class, 'generateReport'])->name('report');
+        Route::post('/{worklog}/process', [WorklogController::class, 'process'])
+            ->middleware('throttle:10,1')
+            ->name('process');
+        Route::match(['get', 'post'], '/report', [WorklogController::class, 'generateReport'])
+            ->middleware('throttle:5,1')
+            ->name('report');
     });
 });
 
